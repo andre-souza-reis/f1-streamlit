@@ -4,12 +4,29 @@ import streamlit as st
 from PIL import Image
 import requests
 import pandas as pd
+from fuzzywuzzy import process
 
 st.set_page_config(layout="wide")
 
-def query_driver(name):
+def query_all_pilots():
+    data = requests.request("GET", 'http://ergast.com/api/f1/drivers?limit=10000').text
+    pilots = pd.read_xml(
+        data,
+        namespaces = {'doc': "http://ergast.com/mrd/1.5"},
+        xpath = './/doc:Driver'
+    )
+    pilots = pilots.assign(Name = pilots[['GivenName', 'FamilyName']].apply(' '.join, axis = 1)).drop(['GivenName', 'FamilyName'], axis = 1)
+
+    return pilots
+
+def query_driver(all_pilots, name):
     
-    return requests.request("GET", 'http://ergast.com/api/f1/drivers?=123')
+    similar_pilots = process.extractBests(name, all_pilots['Name'].to_list(), limit = 10, score_cutoff=80)
+    similar_pilots_list = []
+    for i in similar_pilots:
+        similar_pilots_list.append(i[0])
+
+    return similar_pilots_list
 
 def circuit_page():
     st.header('Circuit')
@@ -21,6 +38,7 @@ def championship_page():
     st.header('Championship')
 
 def pilot_page(data):
+    
     st.header(data[1])
 
     c1r1, c2r1, c3r1 = st.columns(3)
@@ -36,6 +54,7 @@ def pilot_page(data):
     c3r1.markdown(f'**Status:** {10}')
     c3r1.markdown('**Actual Team:** ' + 'Mercedes')
     teams = ['Mercedes', 'Ferrari']
+
     if len(teams)>1:
         teams_f = ''
         for i in teams[:-1]:
@@ -70,21 +89,20 @@ def side_bar():
         )
 
         if navigation == 'Pilot':
+            #Cache
+            all_pilots = query_all_pilots()
+
             # Search name
             st.subheader('Search pilot')
 
             pilot_name_search = st.text_input('Pilot name', 'Lewis')
 
-            response = query_driver(pilot_name_search)
-
-            # print(dir(response))
-            # print(response.text)
-            # print(pd.read_html('http://ergast.com/api/f1/drivers?=123'))
+            response = query_driver(all_pilots, pilot_name_search)
 
             # Select pilot
             pilot_name = st.selectbox(
             f'Pilots with a name similar to {pilot_name_search}',
-            ('Lewis Hamilton', 'Lewis Lamilton', 'Lewis Gamilton'))
+            tuple(response))
 
             # Select period
             st.subheader('Select period')
