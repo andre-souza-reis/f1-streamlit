@@ -1,0 +1,5 @@
+fuzzywuzzy==0.18.0
+pandas==1.4.2
+Pillow==9.1.1
+requests==2.27.1
+streamlit==1.9.2
