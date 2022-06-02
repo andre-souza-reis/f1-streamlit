@@ -11,7 +11,7 @@ from datetime import date
 
 class f1():
     def __init__(self):
-        st.set_page_config(layout="wide")
+        st.set_page_config(page_title='F1 - Data Viz', layout="wide", page_icon='assets/favicon.png')
 
         self.navigation = ''
         self.pilot_name = ''
