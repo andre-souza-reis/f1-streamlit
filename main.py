@@ -53,7 +53,8 @@ class f1():
 
             self.navigation = st.radio(
                 "Go to:",
-                ("Circuit", "Championship", "Driver", "Race", "About")
+                ("Circuit", "Championship", "Driver", "Race", "About"),
+                index=4
             )
 
             if self.navigation == 'Driver':
