@@ -50,7 +50,7 @@ class f1():
         if self.navigation == 'Driver':
             self.pilot_page()
 
-        if self.navigation == 'Championship':
+        if self.navigation == 'Season':
             self.championship_page()
 
         if self.navigation == 'Circuit':
@@ -68,7 +68,7 @@ class f1():
 
             self.navigation = st.radio(
                 "Go to:",
-                ("Circuit", "Championship", "Driver", "Race", "About"),
+                ("Circuit", "Season", "Driver", "Race", "About"),
                 index=4
             )
 
@@ -116,6 +116,11 @@ class f1():
                 race = st.selectbox(f'Select a circuit', races)
 
                 self.round = races.index(race) + 1
+
+            if self.navigation == 'Season':
+                self.year = st.selectbox(
+                    f'Select a season', range(2022, 1949, -1))
+
 
     def circuit_page(self):
         st.header('Circuit')
@@ -173,7 +178,16 @@ class f1():
             st.map(df, zoom=14, use_container_width=True)
 
     def championship_page(self):
-        st.header('Championship')
+        st.header('Season')
+        [driver, constructor] = query_season_details(self.year)
+
+        st.subheader('Driver Championship')
+
+        st.write(driver)
+
+        st.subheader('Constructor Championship')
+
+        st.write(constructor)
 
     def pilot_page(self):
 
@@ -514,5 +528,40 @@ def query_race_details(year, round):
 
     return [race_details, circuit_name, geo, loc, country]
 
+def query_season_details(year):
+    driver = requests.request("GET",f'http://ergast.com/api/f1/{year}/driverStandings').text
+    driver_data = ET.fromstring(driver)
+
+    constructor = requests.request("GET",f'http://ergast.com/api/f1/{year}/constructorStandings').text
+    constructor_data = ET.fromstring(constructor)
+
+    driver_season = []
+    for i in driver_data[0].find('{http://ergast.com/mrd/1.5}StandingsList').findall('{http://ergast.com/mrd/1.5}DriverStanding'):
+        position = i.attrib['position']
+        wins = i.attrib['wins']
+        points = i.attrib['points']
+        name = i.find('{http://ergast.com/mrd/1.5}Driver').find('{http://ergast.com/mrd/1.5}GivenName').text
+        last_name = i.find('{http://ergast.com/mrd/1.5}Driver').find('{http://ergast.com/mrd/1.5}FamilyName').text
+        nationality = i.find('{http://ergast.com/mrd/1.5}Driver').find('{http://ergast.com/mrd/1.5}Nationality').text
+        constructor = i.find('{http://ergast.com/mrd/1.5}Constructor').find('{http://ergast.com/mrd/1.5}Name').text
+        medal = '🥇' if position == '1' else '🥈' if position == '2' else '🥉' if position == '3' else ' '
+        driver_season.append([position, wins, points, f'{name} {last_name}', nationality, constructor, medal])
+
+    driver_dataframe = pd.DataFrame(driver_season, columns=['Position', 'Wins', 'Points', 'Driver', 'Driver Nationality', 'Constructor', 'Medal'])
+
+    constructor_season = []
+    for i in constructor_data[0].find('{http://ergast.com/mrd/1.5}StandingsList').findall('{http://ergast.com/mrd/1.5}ConstructorStanding'):
+        position = i.attrib['position']
+        wins = i.attrib['wins']
+        points = i.attrib['points']
+        name = i.find('{http://ergast.com/mrd/1.5}Constructor').find('{http://ergast.com/mrd/1.5}Name').text
+        nationality = i.find('{http://ergast.com/mrd/1.5}Constructor').find('{http://ergast.com/mrd/1.5}Nationality').text
+        medal = '🥇' if position == '1' else '🥈' if position == '2' else '🥉' if position == '3' else ' '
+        constructor_season.append([position, wins, points, name, nationality, medal])
+
+    constructor_dataframe = pd.DataFrame(constructor_season, columns=['Position', 'Wins', 'Points', 'Constructor', 'Nationality', 'Medal'])
+
+
+    return [driver_dataframe, constructor_dataframe]
 
 instance = f1()
