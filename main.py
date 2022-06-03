@@ -23,6 +23,7 @@ class f1():
         self.circuit_name = ''
         self.year = ''
         self.round = ''
+        self.race_name = ''
 
         self.main_page()
 
@@ -30,11 +31,13 @@ class f1():
         self.side_bar()
 
         st.markdown(
-            f'''
+            '''
             <style>
-                .appview-container .main .block-container {{
-                    padding-top: {1}rem;
-                }}
+                .appview-container .main .block-container {padding-top: 1rem}
+                .row_heading.level0 {display:none}
+                .blank {display:none}
+                .stDataFrame {border:0px}
+                
             </style>
             ''', unsafe_allow_html=True)
 
@@ -79,13 +82,13 @@ class f1():
                 # Search name
                 st.subheader('Search driver')
 
-                pilot_name_search = st.text_input('Driver name', 'Lewis')
+                pilot_name_search = st.text_input('Write a driver name:', 'Lewis')
 
                 response = query_driver(self.all_pilots, pilot_name_search)
 
                 # Select pilot
                 self.pilot_name = st.selectbox(
-                    f'Drivers with a name similar to {pilot_name_search}',
+                    f"Drivers with a name similar to '{pilot_name_search}':",
                     tuple(response))
 
             if self.navigation == 'Circuit':
@@ -93,42 +96,45 @@ class f1():
                 self.all_circuits = query_all_circuits()
 
                 # Search name
-                st.subheader('Search circuit')
+                st.subheader('Search a circuit')
 
                 countries = list(
                     self.all_circuits['Country'].unique().astype(str))
                 countries.sort()
 
                 # Search name
-                country = st.selectbox(f'Select circuit country', countries)
+                country = st.selectbox(f'Select a circuit country', countries)
 
                 circuits = list(
                     self.all_circuits[self.all_circuits['Country'] == country]['Name'])
 
-                self.circuit_name = st.selectbox(f'Select circuit', circuits)
+                self.circuit_name = st.selectbox(f'Select a circuit', circuits)
 
             if self.navigation == 'Race':
+                st.subheader('Search a race')
+
                 self.year = st.selectbox(
-                    f'Select a season', range(2022, 1949, -1))
+                    f'Select a season:', range(2022, 1949, -1))
 
                 races = query_all_races(self.year)
 
-                race = st.selectbox(f'Select a circuit', races)
+                self.race_name = st.selectbox(f'Select a circuit:', races)
 
-                self.round = races.index(race) + 1
+                self.round = races.index(self.race_name) + 1
 
             if self.navigation == 'Season':
-                self.year = st.selectbox(
-                    f'Select a season', range(2022, 1949, -1))
+                
+                st.subheader('Select a Season')
 
+                self.year = st.selectbox(
+                    f'By year:', range(2022, 1949, -1))
 
     def circuit_page(self):
-        st.header('Circuit')
 
         circuit_details = query_circuit_details(
             self.circuit_name, self.all_circuits)
 
-        st.header(self.circuit_name)
+        st.header(f'Circuit - {self.circuit_name}')
 
         st.subheader('Map of region')
 
@@ -140,7 +146,7 @@ class f1():
         df = pd.DataFrame([[lat, long]], columns=['lat', 'lon'])
         st.map(df, zoom=14, use_container_width=True)
 
-        st.subheader(circuit_details[1] + ' Results')
+        st.subheader(f'Last Race Results ({circuit_details[1]})')
 
         st.write(circuit_details[2])
 
@@ -149,7 +155,7 @@ class f1():
         st.write(circuit_details[0])
 
     def race_page(self):
-        st.header('Race')
+        st.header(f'{self.race_name} - {self.year}')
 
         race_details = query_race_details(self.year, self.round)
 
@@ -178,7 +184,7 @@ class f1():
             st.map(df, zoom=14, use_container_width=True)
 
     def championship_page(self):
-        st.header('Season')
+        st.header(f'Season - {self.year}')
         [driver, constructor] = query_season_details(self.year)
 
         st.subheader('Driver Championship')
@@ -438,7 +444,7 @@ def query_circuit_details(circuit_name, all_circuits):
 
     details = []
     for i in range(len(tree[0])):
-        season = tree[0][i].attrib['season']
+        season = int(tree[0][i].attrib['season'])
         race = tree[0][i].find('{http://ergast.com/mrd/1.5}RaceName').text
         name = tree[0][i].find('{http://ergast.com/mrd/1.5}ResultsList').find('{http://ergast.com/mrd/1.5}Result').find(
             '{http://ergast.com/mrd/1.5}Driver').find('{http://ergast.com/mrd/1.5}GivenName').text
@@ -453,21 +459,20 @@ def query_circuit_details(circuit_name, all_circuits):
 
     last_year = hist.iloc[[-1]]['Season'].values[0]
 
-    data = requests.request("GET", 'http://ergast.com/api/f1/' +
-                            last_year + f'/circuits/{circuit_id}/results?limit=1000').text
+    data = requests.request("GET", f'http://ergast.com/api/f1/{last_year}/circuits/{circuit_id}/results?limit=1000').text
     tree = ET.fromstring(data)
 
     details = []
     for i in tree[0][0].find('{http://ergast.com/mrd/1.5}ResultsList').findall('{http://ergast.com/mrd/1.5}Result'):
-        position = i.attrib['position']
-        number = i.attrib['number']
+        position = int(i.attrib['position'])
+        number = int(i.attrib['number'])
         name = i.find(
             '{http://ergast.com/mrd/1.5}Driver').find('{http://ergast.com/mrd/1.5}GivenName').text
         last_name = i.find(
             '{http://ergast.com/mrd/1.5}Driver').find('{http://ergast.com/mrd/1.5}FamilyName').text
         constructor = i.find(
             '{http://ergast.com/mrd/1.5}Constructor').find('{http://ergast.com/mrd/1.5}Name').text
-        emoji = '🥇' if position == '1' else '🥈' if position == '2' else '🥉' if position == '3' else ' '
+        emoji = '🥇' if position == 1 else '🥈' if position == 2 else '🥉' if position == 3 else ' '
         details.append(
             [position, number, (name + ' ' + last_name), constructor, emoji])
 
@@ -537,26 +542,26 @@ def query_season_details(year):
 
     driver_season = []
     for i in driver_data[0].find('{http://ergast.com/mrd/1.5}StandingsList').findall('{http://ergast.com/mrd/1.5}DriverStanding'):
-        position = i.attrib['position']
-        wins = i.attrib['wins']
+        position = int(i.attrib['position'])
+        wins = int(i.attrib['wins'])
         points = i.attrib['points']
         name = i.find('{http://ergast.com/mrd/1.5}Driver').find('{http://ergast.com/mrd/1.5}GivenName').text
         last_name = i.find('{http://ergast.com/mrd/1.5}Driver').find('{http://ergast.com/mrd/1.5}FamilyName').text
         nationality = i.find('{http://ergast.com/mrd/1.5}Driver').find('{http://ergast.com/mrd/1.5}Nationality').text
         constructor = i.find('{http://ergast.com/mrd/1.5}Constructor').find('{http://ergast.com/mrd/1.5}Name').text
-        medal = '🥇' if position == '1' else '🥈' if position == '2' else '🥉' if position == '3' else ' '
+        medal = '🥇' if position == 1 else '🥈' if position == 2 else '🥉' if position == 3 else ' '
         driver_season.append([position, wins, points, f'{name} {last_name}', nationality, constructor, medal])
 
     driver_dataframe = pd.DataFrame(driver_season, columns=['Position', 'Wins', 'Points', 'Driver', 'Driver Nationality', 'Constructor', 'Medal'])
 
     constructor_season = []
     for i in constructor_data[0].find('{http://ergast.com/mrd/1.5}StandingsList').findall('{http://ergast.com/mrd/1.5}ConstructorStanding'):
-        position = i.attrib['position']
-        wins = i.attrib['wins']
+        position = int(i.attrib['position'])
+        wins = int(i.attrib['wins'])
         points = i.attrib['points']
         name = i.find('{http://ergast.com/mrd/1.5}Constructor').find('{http://ergast.com/mrd/1.5}Name').text
         nationality = i.find('{http://ergast.com/mrd/1.5}Constructor').find('{http://ergast.com/mrd/1.5}Nationality').text
-        medal = '🥇' if position == '1' else '🥈' if position == '2' else '🥉' if position == '3' else ' '
+        medal = '🥇' if position == 1 else '🥈' if position == 2 else '🥉' if position == 3 else ' '
         constructor_season.append([position, wins, points, name, nationality, medal])
 
     constructor_dataframe = pd.DataFrame(constructor_season, columns=['Position', 'Wins', 'Points', 'Constructor', 'Nationality', 'Medal'])
