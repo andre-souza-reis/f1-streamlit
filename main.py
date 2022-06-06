@@ -16,7 +16,7 @@ class f1():
 
         self.navigation = ''
         self.pilot_name = ''
-        self.all_pilots = ''
+        self.all_drivers = ''
         self.all_circuits = ''
         self.driverid = ''
         self.driver_details = ''
@@ -51,7 +51,7 @@ class f1():
             st.image(Image.open('assets/f1-logo.png'))
 
         if self.navigation == 'Driver':
-            self.pilot_page()
+            self.driver_page()
 
         if self.navigation == 'Season':
             self.championship_page()
@@ -77,14 +77,14 @@ class f1():
 
             if self.navigation == 'Driver':
                 # Cache
-                self.all_pilots = query_all_pilots()
+                self.all_drivers = query_all_drivers()
 
                 # Search name
                 st.subheader('Search driver')
 
                 pilot_name_search = st.text_input('Write a driver name:', 'Lewis')
 
-                response = query_driver(self.all_pilots, pilot_name_search)
+                response = query_driver(self.all_drivers, pilot_name_search)
 
                 # Select pilot
                 self.pilot_name = st.selectbox(
@@ -128,6 +128,18 @@ class f1():
 
                 self.year = st.selectbox(
                     f'By year:', range(2022, 1949, -1))
+
+            if self.navigation == 'About':
+                st.header('Developed by:')
+                
+                col2, col1 = st.columns([5,2])
+                with col2:
+                    st.image(Image.open('assets/profile.jpeg'))
+                    st.subheader('André de Souza Reis')
+
+                    st.markdown('### Reach me on [LinkedIn](https://www.linkedin.com/in/andre-de-souza-reis/).')
+                    st.markdown('### Take a look on my [GitHub](https://github.com/andre-souza-reis).')
+                    st.markdown('### Check my [Porfolio](https://andre-souza-reis.github.io/).')
 
     def circuit_page(self):
 
@@ -195,9 +207,9 @@ class f1():
 
         st.write(constructor)
 
-    def pilot_page(self):
+    def driver_page(self):
 
-        drivers = self.all_pilots[self.all_pilots['Name']
+        drivers = self.all_drivers[self.all_drivers['Name']
                                   == self.pilot_name]['driverId'].values
         if len(drivers) > 0:
             driverid = drivers[0]
@@ -252,7 +264,7 @@ class f1():
             st.write(driver_details[9])
 
             # try:
-            #     wiki_url = self.all_pilots[self.all_pilots['Name'] == self.pilot_name]['url'].values[0]
+            #     wiki_url = self.all_drivers[self.all_drivers['Name'] == self.pilot_name]['url'].values[0]
             #     fig = query_driver_photo(wiki_url)
             # except:
             #     c1r1.image(Image.open('assets/profile-placeholder.jpg'))
@@ -263,19 +275,43 @@ class f1():
 
     def about_page(self):
         st.header('About')
+        st.markdown('This is a portfolio project that aims to bring Formula 1 data in a visual and enjoyable way to F1 fans.')
+        st.markdown('The application is divided on 5 pages, which can be reached through the side menu:')
+        st.markdown(
+            '''
+                * **Circuit:** On this page, the user can search a specific circuit, selecting its country and name in the side menu. Then it will be possible to see the map of the region, the last race results, and all the F1 past winners of the selected circuit. 
+                * **Season:** On this page, the user can select a year in the side menu and get information about the driver and constructor championship of that year, such as points, wins, positions, etc.
+                * **Driver:** On this page, the user can write a driver name in the side menu and select a driver in the drop-down box. Then, it will be possible to get a lot of information about the selected driver, such as nationality, number of races, number of wins, data regarding the actual world championship (if the driver is a current F1 driver), etc.
+                * **Race:** On this page, the user can select a year and a circuit to get information about a specific race, such as the final positions, drivers names and drivers teams. 
+                * **About:** On this page, which is this one that you are reading, the user can find more information about the project and the application developer.
+            '''
+        )
+        st.subheader('Development')
+        st.markdown('This project was all developed in Python, using the [Streamlit](https://streamlit.io/) library to the frontend, the backend was developed mainly using [Pandas](https://pandas.pydata.org/) to treat the data, and last but not least, all the data shown on this project is requested from the [Ergast Developer API](https://ergast.com/mrd/).')
 
-def query_all_pilots():
+        col1, spc1, col2, spc2, col3 = st.columns([2,1,2,1,2])
+
+        with col1:
+            st.image(Image.open('assets/streamlit-logo.png'))
+
+        with col2:
+            st.image(Image.open('assets/pandas-logo-300.png'))
+
+        with col3:
+            st.image(Image.open('assets/ergast.png'))
+
+def query_all_drivers():
     data = requests.request(
         "GET", 'http://ergast.com/api/f1/drivers?limit=10000').text
-    pilots = pd.read_xml(
+    drivers = pd.read_xml(
         data,
         namespaces={'doc': "http://ergast.com/mrd/1.5"},
         xpath='.//doc:Driver'
     )
-    pilots = pilots.assign(Name=pilots[['GivenName', 'FamilyName']].apply(
+    drivers = drivers.assign(Name=drivers[['GivenName', 'FamilyName']].apply(
         ' '.join, axis=1)).drop(['GivenName', 'FamilyName'], axis=1)
 
-    return pilots
+    return drivers
 
 
 def query_all_circuits():
@@ -296,15 +332,15 @@ def query_all_circuits():
     return pd.DataFrame(circuits, columns=['ID', 'Name', 'Geo', 'Country'])
 
 
-def query_driver(all_pilots, name):
+def query_driver(all_drivers, name):
 
-    similar_pilots = process.extractBests(
-        name, all_pilots['Name'].to_list(), limit=10, score_cutoff=80)
-    similar_pilots_list = []
-    for i in similar_pilots:
-        similar_pilots_list.append(i[0])
+    similar_drivers = process.extractBests(
+        name, all_drivers['Name'].to_list(), limit=10, score_cutoff=80)
+    similar_drivers_list = []
+    for i in similar_drivers:
+        similar_drivers_list.append(i[0])
 
-    return similar_pilots_list
+    return similar_drivers_list
 
 
 def query_driver_photo(url):
@@ -532,6 +568,7 @@ def query_race_details(year, round):
         details, columns=['Position', 'Number', 'Driver', 'Constructor', 'Medal'])
 
     return [race_details, circuit_name, geo, loc, country]
+
 
 def query_season_details(year):
     driver = requests.request("GET",f'http://ergast.com/api/f1/{year}/driverStandings').text
